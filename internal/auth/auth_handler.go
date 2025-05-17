@@ -8,18 +8,33 @@ import (
 	"github.com/yuefii/oauth/pkg/helper"
 )
 
-var oauthState = "randomstate"
-
 func GithubLoginHandler(w http.ResponseWriter, r *http.Request) {
+	state, err := helper.GenerateRandomString(16)
+	if err != nil {
+		http.Error(w, "failed to generate state", http.StatusInternalServerError)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:  "oauth_state",
+		Value: state,
+	})
+
 	conf := GithubOAuthConf()
-	url := conf.AuthCodeURL(oauthState)
+	url := conf.AuthCodeURL(state)
 	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 }
 
 func GithubCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	conf := GithubOAuthConf()
 
-	if r.FormValue("state") != oauthState {
+	cookie, err := r.Cookie("oauth_state")
+	if err != nil {
+		http.Error(w, "missing oauth state cookie", http.StatusBadRequest)
+		return
+	}
+
+	if r.FormValue("state") != cookie.Value {
 		http.Error(w, "invalid state", http.StatusBadRequest)
 		return
 	}
