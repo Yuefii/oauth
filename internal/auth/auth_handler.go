@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+
+	"github.com/yuefii/oauth/pkg/helper"
 )
 
 var oauthState = "randomstate"
@@ -40,9 +42,20 @@ func GithubCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	var user map[string]interface{}
 	json.NewDecoder(resp.Body).Decode(&user)
 
-	// TODO: generate JWT token
+	username, _ := user["login"].(string)
+	fullName, _ := user["name"].(string)
+	avatarURL, _ := user["avatar_url"].(string)
+
+	jwtToken, err := helper.GenerateJWT(username, fullName, avatarURL)
+	if err != nil {
+		http.Error(w, "failed to generate jwt", http.StatusInternalServerError)
+		return
+	}
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"user": user,
+		"username":  username,
+		"full_name": fullName,
+		"avatar":    avatarURL,
+		"token":     jwtToken,
 	})
 }
